@@ -13,6 +13,9 @@
 <link id="apple-touch-icon-precomposed" rel="apple-touch-icon-precomposed">
 <meta name="msapplication-TileColor" content="#1F4E78">
 <meta name="theme-color" content="#1F4E78">
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
 <title>Réservations</title>
 <style>
@@ -92,7 +95,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--ink); min-h
 .card-body { padding: 0 14px 12px; }
 .always-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--purple); background: var(--purple-bg); border: 1px solid var(--purple-border); border-radius: 20px; padding: 3px 9px; margin-bottom: 8px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { background: var(--amber-bg); border: 1px solid var(--amber-border); border-radius: 20px; padding: 4px 11px; font-size: 13px; font-weight: 500; color: var(--amber); }
+.chip { border-radius: 20px; padding: 4px 11px; font-size: 13px; font-weight: 500; }
+.chip.presse { background: var(--amber-bg); border: 1px solid var(--amber-border); color: var(--amber); }
+.chip.tabac  { background: #FFF4E6; border: 1px solid #F5A623; color: #B86A00; }
 .client-note-box { margin-top: 9px; font-size: 12px; color: var(--ink2); background: #FFFBF0; border-left: 3px solid var(--amber-border); padding: 7px 10px; border-radius: 0 8px 8px 0; line-height: 1.5; }
 
 /* EMPTY */
@@ -162,6 +167,13 @@ body { font-family: var(--font); background: var(--bg); color: var(--ink); min-h
 .set-btn { padding: 9px 14px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--bg); cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 500; color: var(--ink2); transition: all 0.2s; white-space: nowrap; }
 .set-btn:hover { border-color: var(--amber); color: var(--amber); }
 
+/* SYNC */
+#sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #94A3B8; flex-shrink: 0; transition: background 0.4s; }
+#sync-dot.synced  { background: #22C55E; }
+#sync-dot.syncing { background: #F59E0B; animation: pulse-dot 0.8s ease-in-out infinite; }
+#sync-dot.error   { background: #EF4444; }
+@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
 /* FAB */
 .fab { position: fixed; bottom: calc(var(--nav-h) + 14px); right: 18px; z-index: 90; width: 54px; height: 54px; border-radius: 15px; background: #2E7BB4; color: white; border: none; font-size: 26px; cursor: pointer; box-shadow: 0 4px 20px rgba(46,123,180,0.4); display: flex; align-items: center; justify-content: center; transition: transform 0.15s; }
 .fab:active { transform: scale(0.93); }
@@ -197,7 +209,13 @@ textarea.fi { resize: vertical; min-height: 70px; line-height: 1.5; }
 .art-del { width: 36px; height: 36px; border: 1.5px solid var(--border); border-radius: 8px; background: white; cursor: pointer; font-size: 15px; color: var(--ink3); display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
 .art-del:hover { border-color: var(--red); color: var(--red); background: #FEF2F2; }
 .add-art-btn { width: 100%; padding: 9px; border: 1.5px dashed var(--amber-border); border-radius: 8px; background: var(--amber-bg); cursor: pointer; font-family: var(--font); font-size: 13px; color: var(--amber); font-weight: 600; transition: all 0.2s; }
-.add-art-btn:hover { background: #FDE8BB; }
+.add-art-btn:hover { background: #C8E6F8; }
+.art-type-btn { flex-shrink: 0; height: 36px; padding: 0 10px; border: 1.5px solid var(--border); border-radius: 8px; background: white; cursor: pointer; font-size: 13px; font-weight: 700; font-family: var(--font); transition: all 0.2s; white-space: nowrap; color: var(--ink2); }
+.art-type-btn.presse { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber); }
+.art-type-btn.tabac  { background: #FFF4E6; border-color: #F5A623; color: #B86A00; }
+.cat-section-title { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; margin: 10px 0 6px; display: flex; align-items: center; gap: 5px; }
+.cat-section-title.presse { color: var(--amber); }
+.cat-section-title.tabac  { color: #B86A00; }
 .btn-row { display: flex; gap: 9px; margin-top: 20px; }
 .btn { flex: 1; padding: 14px; border: none; border-radius: 12px; font-family: var(--font); font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
 .btn-primary { background: #2E7BB4; color: white; }
@@ -312,6 +330,7 @@ textarea.fi { resize: vertical; min-height: 70px; line-height: 1.5; }
     <div class="header-title">Réservations</div>
   </div>
   <div class="header-right">
+    <div id="sync-dot" title="Synchronisation"></div>
     <button class="icon-btn" onclick="navigate('settings')" title="Paramètres">⚙️</button>
     <button class="icon-btn" id="notif-btn" onclick="handleNotifBtn()" title="Notifications">🔔<span id="notif-badge"></span></button>
   </div>
@@ -494,13 +513,112 @@ const DEFAULT_CLIENTS=[
 
 let clients=[],orders=[],doneMap={},currentScreen='today',editingClientId=null,editingOrderId=null,selectedModalDay=null,modalReservations={},selectedWeekDay=null,currentOrderStatut='en_attente',orderFilter='tous',notifEnabled=false,notifScheduled=false;
 
+// ── FIREBASE ──────────────────────────────────────────────────────────────────
+const FB_CONFIG = {
+  apiKey: "AIzaSyDQVID-NWwXpc-0EuCTqpkwkYYCrd67XQA",
+  authDomain: "reservations-b6f76.firebaseapp.com",
+  databaseURL: "https://reservations-b6f76-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "reservations-b6f76",
+  storageBucket: "reservations-b6f76.firebasestorage.app",
+  messagingSenderId: "98310953019",
+  appId: "1:98310953019:web:e7362cd4c205b7b276641e"
+};
+
+let db = null;
+let fbReady = false;
+
+function setSyncDot(state){ // 'syncing' | 'synced' | 'error' | 'offline'
+  const d = el('sync-dot'); if(!d) return;
+  d.className = state === 'synced' ? 'synced' : state === 'syncing' ? 'syncing' : state === 'error' ? 'error' : '';
+  const labels = {synced:'Synchronisé ✓', syncing:'Synchronisation…', error:'Erreur de sync', offline:'Hors ligne'};
+  d.title = labels[state] || '';
+}
+
+function arrToObj(arr){ const o={}; arr.forEach(i=>{ if(i&&i.id) o[i.id]=i; }); return o; }
+function objToArr(obj){ return obj ? Object.values(obj) : []; }
+
+function initFirebase(){
+  try {
+    firebase.initializeApp(FB_CONFIG);
+    db = firebase.database();
+
+    // Connectivity indicator
+    firebase.database().ref('.info/connected').on('value', snap => {
+      setSyncDot(snap.val() ? 'synced' : 'offline');
+    });
+
+    // ── Real-time listeners ──
+    db.ref('clients').on('value', snap => {
+      const data = snap.val();
+      if (data !== null) {
+        clients = objToArr(data);
+        localStorage.setItem('panos_clients', JSON.stringify(clients));
+        refreshCurrentScreen();
+      } else if (!localStorage.getItem('panos_clients')) {
+        // First launch: push default clients to Firebase
+        const obj = arrToObj(JSON.parse(JSON.stringify(DEFAULT_CLIENTS)));
+        db.ref('clients').set(obj);
+      }
+    });
+
+    db.ref('orders').on('value', snap => {
+      const data = snap.val();
+      orders = data ? objToArr(data) : [];
+      localStorage.setItem('panos_orders', JSON.stringify(orders));
+      if (currentScreen === 'commander') renderOrders();
+    });
+
+    db.ref('done').on('value', snap => {
+      const data = snap.val();
+      if (data) {
+        localStorage.setItem('panos_done', JSON.stringify(data));
+        doneMap = data[todayKey()] || {};
+        if (currentScreen === 'today') renderToday();
+      }
+    });
+
+    fbReady = true;
+  } catch(e) {
+    console.warn('Firebase init failed:', e);
+    setSyncDot('error');
+  }
+}
+
+function refreshCurrentScreen(){
+  if(currentScreen==='today') renderToday();
+  else if(currentScreen==='clients') renderClients();
+  else if(currentScreen==='week') renderWeek();
+}
+
+// ── PERSISTENCE (Firebase + localStorage fallback) ───────────────────────────
 function todayKey(){const d=new Date();return`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;}
-function loadClients(){const s=localStorage.getItem('panos_clients');return s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT_CLIENTS));}
-function saveClients(){localStorage.setItem('panos_clients',JSON.stringify(clients));}
+
+function loadClients(){
+  const s=localStorage.getItem('panos_clients');
+  return s ? JSON.parse(s) : JSON.parse(JSON.stringify(DEFAULT_CLIENTS));
+}
+function saveClients(){
+  localStorage.setItem('panos_clients',JSON.stringify(clients));
+  if(db){ setSyncDot('syncing'); db.ref('clients').set(arrToObj(clients)).then(()=>setSyncDot('synced')).catch(()=>setSyncDot('error')); }
+}
+
 function loadOrders(){const s=localStorage.getItem('panos_orders');return s?JSON.parse(s):[];}
-function saveOrders(){localStorage.setItem('panos_orders',JSON.stringify(orders));}
+function saveOrders(){
+  localStorage.setItem('panos_orders',JSON.stringify(orders));
+  if(db){ setSyncDot('syncing'); db.ref('orders').set(arrToObj(orders)).then(()=>setSyncDot('synced')).catch(()=>setSyncDot('error')); }
+}
+
 function loadDone(){const s=localStorage.getItem('panos_done');const all=s?JSON.parse(s):{};return all[todayKey()]||{};}
-function saveDone(){const s=localStorage.getItem('panos_done');const all=s?JSON.parse(s):{};all[todayKey()]=doneMap;const keys=Object.keys(all).sort();if(keys.length>14)keys.slice(0,keys.length-14).forEach(k=>delete all[k]);localStorage.setItem('panos_done',JSON.stringify(all));}
+function saveDone(){
+  const s=localStorage.getItem('panos_done');
+  const all=s?JSON.parse(s):{};
+  all[todayKey()]=doneMap;
+  const keys=Object.keys(all).sort();
+  if(keys.length>14) keys.slice(0,keys.length-14).forEach(k=>delete all[k]);
+  localStorage.setItem('panos_done',JSON.stringify(all));
+  if(db){ setSyncDot('syncing'); db.ref('done').set(all).then(()=>setSyncDot('synced')).catch(()=>setSyncDot('error')); }
+}
+
 function loadSettings(){const s=localStorage.getItem('panos_settings');return s?JSON.parse(s):{notifTime:'07:30',notifEnabled:false};}
 function saveSettings(){localStorage.setItem('panos_settings',JSON.stringify({notifTime:el('notif-time').value,notifEnabled}));}
 
@@ -529,7 +647,24 @@ function splitName(c){
   if(c.prenom) return{civility:c.prenom, name:c.nom};
   return{civility:'', name:c.nom};
 }
-// Sort key: ignore honorific prefixes so "M. Dewandre" sorts as "Dewandre"
+// Article helpers — articles stored as {nom, type} or legacy plain strings
+function artNom(a){ return typeof a==='string' ? a : (a.nom||''); }
+function artType(a){ return typeof a==='string' ? 'presse' : (a.type||'presse'); }
+function artObj(nom,type){ return {nom,type:type||'presse'}; }
+function chipsHTML(arts){
+  const presse=arts.filter(a=>artType(a)==='presse');
+  const tabac =arts.filter(a=>artType(a)==='tabac');
+  let html='';
+  if(presse.length && tabac.length){
+    html+=`<div class="cat-section-title presse">📰 Presse</div><div class="chips">${presse.map(a=>`<span class="chip presse">${artNom(a)}</span>`).join('')}</div>`;
+    html+=`<div class="cat-section-title tabac" style="margin-top:8px">🚬 Tabac</div><div class="chips">${tabac.map(a=>`<span class="chip tabac">${artNom(a)}</span>`).join('')}</div>`;
+  } else if(tabac.length){
+    html+=`<div class="chips">${tabac.map(a=>`<span class="chip tabac">${artNom(a)}</span>`).join('')}</div>`;
+  } else {
+    html+=`<div class="chips">${presse.map(a=>`<span class="chip presse">${artNom(a)}</span>`).join('')}</div>`;
+  }
+  return html;
+}
 const TITLES=/^(m\.|mr\.?|mme\.?|monsieur|madame|dr\.?|docteur)\s+/i;
 function sortKey(c){
   const full=fullName(c).trim();
@@ -567,9 +702,27 @@ function renderToday(){
   el('progress-bar').style.width=total?(done/total*100)+'%':'0%';
   const container=el('today-cards');container.innerHTML='';
   if(!total){container.innerHTML=`<div class="empty"><div class="empty-icon">🎉</div><h3>Journée sans réservation</h3><p>Aucun article à mettre de côté ce ${DAY_LABELS[idx].toLowerCase()}.</p></div>`;return;}
-  const pending=dc.filter(c=>!doneMap[c.id]),doneList=dc.filter(c=>doneMap[c.id]);
-  if(pending.length){const t=document.createElement('div');t.className='sec-title';t.textContent=`À mettre de côté — ${pending.length} client${pending.length>1?'s':''}`;container.appendChild(t);pending.forEach(c=>container.appendChild(buildCard(c,idx)));}
-  if(doneList.length){const t=document.createElement('div');t.className='sec-title';t.textContent=`Mis de côté ✓ — ${doneList.length}`;container.appendChild(t);doneList.forEach(c=>container.appendChild(buildCard(c,idx)));}
+
+  const pending=dc.filter(c=>!doneMap[c.id]);
+  const doneList=dc.filter(c=>doneMap[c.id]);
+
+  function hasType(c,type){ return (c.reservations[DAYS[idx]]||[]).some(a=>artType(a)===type); }
+
+  function appendSection(clients, label){
+    if(!clients.length) return;
+    const t=document.createElement('div');t.className='sec-title';t.textContent=label;container.appendChild(t);
+
+    // Sub-group: presse first, then tabac
+    const presseClients=clients.filter(c=>hasType(c,'presse'));
+    const tabacClients =clients.filter(c=>hasType(c,'tabac') && !hasType(c,'presse'));
+    const mixedClients =clients.filter(c=>hasType(c,'presse') && hasType(c,'tabac'));
+
+    // Actually: just show all in order but with a mini presse/tabac header inside the card
+    clients.forEach(c=>container.appendChild(buildCard(c,idx)));
+  }
+
+  if(pending.length) appendSection(pending, `À mettre de côté — ${pending.length} client${pending.length>1?'s':''}`);
+  if(doneList.length) appendSection(doneList, `Mis de côté ✓ — ${doneList.length}`);
 }
 
 function nameHTML(c){
@@ -599,7 +752,7 @@ function buildCard(client,dayIdx){
       </div>
       <div class="card-body">
         ${client.toujours?'<div class="always-badge">♾️ Toujours garder</div>':''}
-        <div class="chips">${arts.map(a=>`<span class="chip">${a}</span>`).join('')}</div>
+        ${chipsHTML(arts)}
         ${client.note?`<div class="client-note-box">ℹ️ ${client.note}</div>`:''}
       </div>
     </div>`;
@@ -656,7 +809,7 @@ function renderWeekDetail(i){
   const dc=clientsForDay(i),det=el('week-detail');
   if(!dc.length){det.innerHTML=`<div class="empty"><div class="empty-icon">📰</div><h3>Aucune réservation</h3><p>Pas d'articles le ${DAY_LABELS[i].toLowerCase()}.</p></div>`;return;}
   det.innerHTML=`<div class="sec-title">${DAY_LABELS[i]} — ${dc.length} client${dc.length>1?'s':''}</div>`;
-  dc.forEach(c=>{const div=document.createElement('div');div.className='client-card';const arts=c.reservations[DAYS[i]]||[];div.innerHTML=`<div class="card-top"><div class="card-client-info">${nameHTML(c)}${c.tel?`<div class="card-tel">📞 ${c.tel}</div>`:''}</div></div><div class="card-body">${c.toujours?'<div class="always-badge">♾️ Toujours garder</div>':''}<div class="chips">${arts.map(a=>`<span class="chip">${a}</span>`).join('')}</div>${c.note?`<div class="client-note-box">ℹ️ ${c.note}</div>`:''}</div>`;det.appendChild(div);});
+  dc.forEach(c=>{const div=document.createElement('div');div.className='client-card';const arts=c.reservations[DAYS[i]]||[];div.innerHTML=`<div class="card-top"><div class="card-client-info">${nameHTML(c)}${c.tel?`<div class="card-tel">📞 ${c.tel}</div>`:''}</div></div><div class="card-body">${c.toujours?'<div class="always-badge">♾️ Toujours garder</div>':''}${chipsHTML(arts)}${c.note?`<div class="client-note-box">ℹ️ ${c.note}</div>`:''}</div>`;det.appendChild(div);});
 }
 
 // ── CLIENTS ──
@@ -704,7 +857,7 @@ function openClientModal(clientId){
 function closeModal(w){el('overlay-'+w).classList.remove('open');document.body.style.overflow='';if(w==='client')selectedModalDay=null;}
 
 function updateDaySelectors(){
-  document.querySelectorAll('.dp').forEach(b=>{const d=b.dataset.d;b.classList.toggle('sel',!!(modalReservations[d]&&modalReservations[d].length));b.classList.toggle('editing',d===selectedModalDay);});
+  document.querySelectorAll('.dp').forEach(b=>{const d=b.dataset.d;b.classList.toggle('sel',!!(modalReservations[d]&&modalReservations[d].some(a=>artNom(a).trim())));b.classList.toggle('editing',d===selectedModalDay);});
 }
 
 function selectDay(day){selectedModalDay=selectedModalDay===day?null:day;updateDaySelectors();renderArticlesPanel();}
@@ -716,17 +869,43 @@ function renderArticlesPanel(){
   const arts=modalReservations[selectedModalDay];
   const dayLabel=DAY_LABELS[DAYS.indexOf(selectedModalDay)];
   panel.innerHTML=`<div class="ap-label">Articles du ${dayLabel}</div>`;
-  arts.forEach((a,i)=>{const row=document.createElement('div');row.className='art-row';row.innerHTML=`<input type="text" class="art-inp" value="${a.replace(/"/g,'&quot;')}" placeholder="Ex : La Meuse Huy-Waremme" oninput="updateArticle(${i},this.value)"><button class="art-del" onclick="removeArticle(${i})">✕</button>`;panel.appendChild(row);});
+  arts.forEach((a,i)=>{
+    const nom=artNom(a), type=artType(a);
+    const row=document.createElement('div');row.className='art-row';
+    row.innerHTML=`
+      <button class="art-type-btn ${type}" onclick="toggleArtType(${i})" title="Basculer Presse/Tabac">
+        ${type==='tabac'?'🚬':'📰'}
+      </button>
+      <input type="text" class="art-inp" value="${nom.replace(/"/g,'&quot;')}" placeholder="Ex : La Meuse, Marlboro…" oninput="updateArticle(${i},this.value)">
+      <button class="art-del" onclick="removeArticle(${i})">✕</button>`;
+    panel.appendChild(row);
+  });
   const btn=document.createElement('button');btn.className='add-art-btn';btn.textContent='+ Ajouter un article';btn.onclick=addArticle;panel.appendChild(btn);
 }
 
-function addArticle(){if(!selectedModalDay)return;modalReservations[selectedModalDay].push('');renderArticlesPanel();updateDaySelectors();setTimeout(()=>{const ins=el('articles-panel').querySelectorAll('.art-inp');if(ins.length)ins[ins.length-1].focus();},50);}
+function addArticle(){
+  if(!selectedModalDay)return;
+  modalReservations[selectedModalDay].push(artObj('','presse'));
+  renderArticlesPanel();updateDaySelectors();
+  setTimeout(()=>{const ins=el('articles-panel').querySelectorAll('.art-inp');if(ins.length)ins[ins.length-1].focus();},50);
+}
 function removeArticle(i){modalReservations[selectedModalDay].splice(i,1);renderArticlesPanel();updateDaySelectors();}
-function updateArticle(i,v){if(selectedModalDay)modalReservations[selectedModalDay][i]=v;}
+function updateArticle(i,v){
+  if(!selectedModalDay)return;
+  const a=modalReservations[selectedModalDay][i];
+  modalReservations[selectedModalDay][i]=artObj(v, typeof a==='string'?'presse':a.type);
+}
+function toggleArtType(i){
+  if(!selectedModalDay)return;
+  const a=modalReservations[selectedModalDay][i];
+  const currentType=artType(a);
+  modalReservations[selectedModalDay][i]=artObj(artNom(a), currentType==='presse'?'tabac':'presse');
+  renderArticlesPanel();
+}
 
 function saveClient(){
   const nom=el('f-nom').value.trim();if(!nom){toast('⚠️ Le nom est obligatoire');el('f-nom').focus();return;}
-  const res={};DAYS.forEach(d=>{res[d]=(modalReservations[d]||[]).filter(a=>a.trim());});
+  const res={};DAYS.forEach(d=>{res[d]=(modalReservations[d]||[]).filter(a=>artNom(a).trim());});
   const data={nom,prenom:el('f-prenom').value.trim(),tel:el('f-tel').value.trim(),note:el('f-note').value.trim(),toujours:el('f-toujours').classList.contains('on'),reservations:res};
   if(editingClientId){const i=clients.findIndex(c=>c.id===editingClientId);if(i>=0)clients[i]={...clients[i],...data};toast('✓ Client mis à jour');}
   else{clients.push({id:uid(),...data});toast('✓ Client ajouté');}
@@ -917,6 +1096,7 @@ function init(){
   renderToday();updateNotifUI();
   if(notifEnabled&&Notification.permission==='granted')scheduleNotif();
   setupPWA();
+  initFirebase();
   hideSplash();
 }
 init();
