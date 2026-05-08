@@ -83,8 +83,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--ink); min-h
 .client-card.done .card-top { background: var(--green-bg); }
 .card-top { padding: 12px 14px 9px; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; transition: background 0.3s; }
 .card-client-info { flex: 1; min-width: 0; }
-.card-name { font-weight: 600; font-size: 16px; }
-.card-tel { font-size: 12px; color: var(--ink3); margin-top: 2px; }
+.card-civility { font-size: 11px; font-weight: 600; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.07em; line-height: 1; margin-bottom: 3px; }
+.card-name { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; line-height: 1.1; }
+.card-tel { font-size: 12px; color: var(--ink3); margin-top: 3px; }
 .check-btn { display: flex; align-items: center; gap: 5px; padding: 7px 13px; border: 2px solid var(--border); border-radius: 24px; background: white; cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 600; color: var(--ink2); transition: all 0.2s; white-space: nowrap; flex-shrink: 0; }
 .check-btn:hover { border-color: var(--green); color: var(--green); }
 .check-btn.checked { background: var(--green); border-color: var(--green); color: white; }
@@ -208,7 +209,12 @@ textarea.fi { resize: vertical; min-height: 70px; line-height: 1.5; }
 .sp.sel-commande { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); }
 .sp.sel-recu { background: var(--green-bg); border-color: var(--green); color: var(--green); }
 
-/* TOAST */
+/* SWIPE */
+.client-card { position: relative; overflow: hidden; touch-action: pan-y; }
+.swipe-hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end; padding-right: 22px; gap: 10px; font-weight: 700; font-size: 15px; border-radius: var(--radius); pointer-events: none; opacity: 0; transition: opacity 0.15s; }
+.swipe-hint.green { background: linear-gradient(90deg, #22C55E, #16A34A); color: white; }
+.swipe-hint.grey  { background: linear-gradient(90deg, #94A3B8, #64748B); color: white; }
+.card-inner { transition: transform 0.25s cubic-bezier(.4,0,.2,1); will-change: transform; }
 #toast { position: fixed; top: calc(var(--header-h) + 10px); left: 50%; transform: translateX(-50%); z-index: 400; background: var(--ink); color: white; padding: 10px 18px; border-radius: 12px; font-size: 14px; font-weight: 500; box-shadow: 0 8px 32px rgba(28,23,20,0.35); opacity: 0; pointer-events: none; transition: opacity 0.25s; white-space: nowrap; max-width: calc(100vw - 32px); text-align: center; }
 #toast.show { opacity: 1; }
 
@@ -238,7 +244,7 @@ textarea.fi { resize: vertical; min-height: 70px; line-height: 1.5; }
 
 @keyframes slideUp { from { transform: translateX(-50%) translateY(20px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
 @media (min-width: 600px) { #content { max-width: 720px; margin: 0 auto; } .screen { padding: 0 22px; } .fab { right: calc(50% - 360px + 18px); } }
-@media (min-width: 900px) { #today-cards { columns: 2; column-gap: 12px; } .client-card { break-inside: avoid; margin-bottom: 12px; } }
+@media (min-width: 900px) { .client-card { margin-bottom: 12px; } }
 </style>
 </head>
 <body>
@@ -500,10 +506,37 @@ function saveSettings(){localStorage.setItem('panos_settings',JSON.stringify({no
 
 function el(id){return document.getElementById(id);}
 function uid(){return'x'+Date.now()+Math.random().toString(36).slice(2,5);}
-function initials(nom,prenom){const skip=['m.','mme','mr','mr.','mme.','m'];const parts=[nom,prenom].filter(Boolean).flatMap(s=>s.trim().split(/\s+/)).filter(p=>!skip.includes(p.toLowerCase()));return parts.length?parts[0][0].toUpperCase():(nom[0]||'?').toUpperCase();}
+function initials(nom,prenom){const skip=['m.','mme','mr','mr.','mme.','m','monsieur','madame'];const parts=[nom,prenom].filter(Boolean).flatMap(s=>s.trim().split(/\s+/)).filter(p=>!skip.includes(p.toLowerCase()));return parts.length?parts[0][0].toUpperCase():(nom[0]||'?').toUpperCase();}
 function fullName(c){return[c.prenom,c.nom].filter(Boolean).join(' ')||c.nom;}
+// Split display: { civility, name } — extracts M./Mme/etc. from prenom or nom
+function splitName(c){
+  const CIVI=/^(m\.|mr\.?|mme\.?|monsieur|madame|dr\.?|docteur)$/i;
+  const prenomParts=(c.prenom||'').trim().split(/\s+/);
+  const nomParts=(c.nom||'').trim().split(/\s+/);
+  // Check if first word of prenom is a title
+  if(c.prenom && CIVI.test(prenomParts[0])){
+    const civ=prenomParts[0];
+    const rest=[...prenomParts.slice(1),...nomParts].filter(Boolean).join(' ');
+    return{civility:civ, name:rest||c.nom};
+  }
+  // Check if first word of nom is a title (e.g. nom="M. Dewandre")
+  if(CIVI.test(nomParts[0])){
+    const civ=nomParts[0];
+    const rest=[...(c.prenom?[c.prenom]:[]),...nomParts.slice(1)].filter(Boolean).join(' ');
+    return{civility:civ, name:rest||nomParts.slice(1).join(' ')||c.nom};
+  }
+  // No title — prenom on first line if exists, else just nom
+  if(c.prenom) return{civility:c.prenom, name:c.nom};
+  return{civility:'', name:c.nom};
+}
+// Sort key: ignore honorific prefixes so "M. Dewandre" sorts as "Dewandre"
+const TITLES=/^(m\.|mr\.?|mme\.?|monsieur|madame|dr\.?|docteur)\s+/i;
+function sortKey(c){
+  const full=fullName(c).trim();
+  return full.replace(TITLES,'').toLowerCase();
+}
 function getTodayIdx(){const d=new Date().getDay();return d===0?6:d-1;}
-function clientsForDay(i){return clients.filter(c=>c.reservations[DAYS[i]]&&c.reservations[DAYS[i]].length>0);}
+function clientsForDay(i){return clients.filter(c=>c.reservations[DAYS[i]]&&c.reservations[DAYS[i]].length>0).sort((a,b)=>sortKey(a).localeCompare(sortKey(b),'fr'));}
 
 let toastTimer;
 function toast(msg){const t=el('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2600);}
@@ -539,10 +572,74 @@ function renderToday(){
   if(doneList.length){const t=document.createElement('div');t.className='sec-title';t.textContent=`Mis de côté ✓ — ${doneList.length}`;container.appendChild(t);doneList.forEach(c=>container.appendChild(buildCard(c,idx)));}
 }
 
+function nameHTML(c){
+  const{civility,name}=splitName(c);
+  return civility
+    ? `<div class="card-civility">${civility}</div><div class="card-name">${name}</div>`
+    : `<div class="card-name">${name}</div>`;
+}
+
 function buildCard(client,dayIdx){
   const arts=client.reservations[DAYS[dayIdx]]||[],isDone=!!doneMap[client.id];
-  const card=document.createElement('div');card.className='client-card'+(isDone?' done':'');
-  card.innerHTML=`<div class="card-top"><div class="card-client-info"><div class="card-name">${fullName(client)}</div>${client.tel?`<div class="card-tel">📞 ${client.tel}</div>`:''}</div><button class="check-btn ${isDone?'checked':''}" onclick="toggleDone('${client.id}')">${isDone?'✓ Mis de côté':'○ Mettre de côté'}</button></div><div class="card-body">${client.toujours?'<div class="always-badge">♾️ Toujours garder</div>':''}<div class="chips">${arts.map(a=>`<span class="chip">${a}</span>`).join('')}</div>${client.note?`<div class="client-note-box">ℹ️ ${client.note}</div>`:''}</div>`;
+  const card=document.createElement('div');
+  card.className='client-card'+(isDone?' done':'');
+  const hintLabel = isDone ? '↩ Remettre en attente' : '✓ Mis de côté !';
+  const hintClass = isDone ? 'grey' : 'green';
+  card.innerHTML=`
+    <div class="swipe-hint ${hintClass}"><span>${hintLabel}</span></div>
+    <div class="card-inner">
+      <div class="card-top">
+        <div class="card-client-info">
+          ${nameHTML(client)}
+          ${client.tel?`<div class="card-tel">📞 ${client.tel}</div>`:''}
+        </div>
+        <button class="check-btn ${isDone?'checked':''}" onclick="toggleDone('${client.id}')">
+          ${isDone?'✓ Mis de côté':'○ Mettre de côté'}
+        </button>
+      </div>
+      <div class="card-body">
+        ${client.toujours?'<div class="always-badge">♾️ Toujours garder</div>':''}
+        <div class="chips">${arts.map(a=>`<span class="chip">${a}</span>`).join('')}</div>
+        ${client.note?`<div class="client-note-box">ℹ️ ${client.note}</div>`:''}
+      </div>
+    </div>`;
+
+  // Swipe gesture
+  let startX=0, startY=0, isDragging=false, triggered=false;
+  const inner = card.querySelector('.card-inner');
+  const hint  = card.querySelector('.swipe-hint');
+  const THRESHOLD = 90;
+
+  card.addEventListener('touchstart', e=>{
+    startX=e.touches[0].clientX; startY=e.touches[0].clientY;
+    isDragging=false; triggered=false;
+  },{passive:true});
+
+  card.addEventListener('touchmove', e=>{
+    const dx=e.touches[0].clientX-startX;
+    const dy=e.touches[0].clientY-startY;
+    if(!isDragging && Math.abs(dy)>Math.abs(dx)) return; // vertical scroll
+    if(dx > -10) return; // only left swipe
+    isDragging=true;
+    const move=Math.max(dx, -THRESHOLD*1.4);
+    inner.style.transform=`translateX(${move}px)`;
+    hint.style.opacity=Math.min(1, -move/THRESHOLD);
+    if(-move>=THRESHOLD && !triggered){
+      triggered=true;
+      inner.style.transition='transform 0.18s';
+      inner.style.transform=`translateX(${-THRESHOLD*1.4}px)`;
+      navigator.vibrate&&navigator.vibrate(40);
+    }
+  },{passive:true});
+
+  card.addEventListener('touchend', ()=>{
+    if(triggered){ toggleDone(client.id); return; }
+    inner.style.transition='transform 0.3s cubic-bezier(.4,0,.2,1)';
+    inner.style.transform='translateX(0)';
+    hint.style.opacity='0';
+    setTimeout(()=>inner.style.transition='',320);
+  });
+
   return card;
 }
 
@@ -559,18 +656,22 @@ function renderWeekDetail(i){
   const dc=clientsForDay(i),det=el('week-detail');
   if(!dc.length){det.innerHTML=`<div class="empty"><div class="empty-icon">📰</div><h3>Aucune réservation</h3><p>Pas d'articles le ${DAY_LABELS[i].toLowerCase()}.</p></div>`;return;}
   det.innerHTML=`<div class="sec-title">${DAY_LABELS[i]} — ${dc.length} client${dc.length>1?'s':''}</div>`;
-  dc.forEach(c=>{const div=document.createElement('div');div.className='client-card';const arts=c.reservations[DAYS[i]]||[];div.innerHTML=`<div class="card-top"><div class="card-client-info"><div class="card-name">${fullName(c)}</div>${c.tel?`<div class="card-tel">📞 ${c.tel}</div>`:''}</div></div><div class="card-body">${c.toujours?'<div class="always-badge">♾️ Toujours garder</div>':''}<div class="chips">${arts.map(a=>`<span class="chip">${a}</span>`).join('')}</div>${c.note?`<div class="client-note-box">ℹ️ ${c.note}</div>`:''}</div>`;det.appendChild(div);});
+  dc.forEach(c=>{const div=document.createElement('div');div.className='client-card';const arts=c.reservations[DAYS[i]]||[];div.innerHTML=`<div class="card-top"><div class="card-client-info">${nameHTML(c)}${c.tel?`<div class="card-tel">📞 ${c.tel}</div>`:''}</div></div><div class="card-body">${c.toujours?'<div class="always-badge">♾️ Toujours garder</div>':''}<div class="chips">${arts.map(a=>`<span class="chip">${a}</span>`).join('')}</div>${c.note?`<div class="client-note-box">ℹ️ ${c.note}</div>`:''}</div>`;det.appendChild(div);});
 }
 
 // ── CLIENTS ──
 function renderClients(){
   const q=el('search-inp').value.toLowerCase().trim();
-  const filtered=(q?clients.filter(c=>fullName(c).toLowerCase().includes(q)||c.tel.includes(q)):[...clients]).sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
+  const filtered=(q?clients.filter(c=>fullName(c).toLowerCase().includes(q)||c.tel.includes(q)):[...clients]).sort((a,b)=>sortKey(a).localeCompare(sortKey(b),'fr'));
   const list=el('clients-list');
   if(!filtered.length){list.innerHTML=`<div class="empty"><div class="empty-icon">👤</div><h3>Aucun client</h3><p>Ajoutez votre premier client avec le bouton +</p></div>`;return;}
   list.innerHTML=filtered.map(c=>{
+    const{civility,name}=splitName(c);
+    const nameBlock=civility
+      ? `<div style="font-size:10px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:0.07em;line-height:1;margin-bottom:2px">${civility}</div><div class="ci-name">${name}</div>`
+      : `<div class="ci-name">${name}</div>`;
     const dots=DAYS.map((d,i)=>`<div class="dot ${c.reservations[d]&&c.reservations[d].length?'on':''}">${DAY_SHORT[i][0]}</div>`).join('');
-    return`<div class="client-item"><div class="client-item-main" onclick="openClientModal('${c.id}')"><div class="avatar">${initials(c.nom,c.prenom)}</div><div class="ci-info"><div class="ci-name">${fullName(c)}</div><div class="ci-tel">${c.tel?'📞 '+c.tel:'<span style="color:var(--ink3)">Aucun tél.</span>'}</div><div class="ci-dots">${dots}</div></div></div><button class="del-inline-btn" onclick="confirmDeleteClient('${c.id}')" title="Supprimer">🗑</button></div>`;
+    return`<div class="client-item"><div class="client-item-main" onclick="openClientModal('${c.id}')"><div class="avatar">${initials(c.nom,c.prenom)}</div><div class="ci-info">${nameBlock}<div class="ci-tel">${c.tel?'📞 '+c.tel:'<span style="color:var(--ink3)">Aucun tél.</span>'}</div><div class="ci-dots">${dots}</div></div></div><button class="del-inline-btn" onclick="confirmDeleteClient('${c.id}')" title="Supprimer">🗑</button></div>`;
   }).join('');
 }
 
