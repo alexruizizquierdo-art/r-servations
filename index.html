@@ -8,9 +8,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Réservations">
 <meta name="application-name" content="Réservations">
-<link id="pwa-manifest" rel="manifest">
-<link id="apple-touch-icon" rel="apple-touch-icon">
-<link id="apple-touch-icon-precomposed" rel="apple-touch-icon-precomposed">
+<link rel="manifest" href="manifest.json">
+<link id="apple-touch-icon" rel="apple-touch-icon" href="icon-192.png">
+<link id="apple-touch-icon-precomposed" rel="apple-touch-icon-precomposed" href="icon-192.png">
 <meta name="msapplication-TileColor" content="#1F4E78">
 <meta name="theme-color" content="#1F4E78">
 <!-- Firebase SDK -->
@@ -1069,16 +1069,18 @@ function drawIcon(size) {
 }
 
 function setupPWA(){
-  const i192=drawIcon(192),i512=drawIcon(512);
-  document.getElementById('apple-touch-icon').href=i192;
-  document.getElementById('apple-touch-icon-precomposed').href=i192;
-  const manifest={name:'Réservations',short_name:'Réservations',description:'Gestion des réservations presse',start_url:'./',scope:'./',display:'standalone',background_color:'#1F4E78',theme_color:'#1F4E78',orientation:'any',lang:'fr-BE',icons:[{src:i192,sizes:'192x192',type:'image/png',purpose:'any'},{src:i192,sizes:'192x192',type:'image/png',purpose:'maskable'},{src:i512,sizes:'512x512',type:'image/png',purpose:'any'},{src:i512,sizes:'512x512',type:'image/png',purpose:'maskable'}]};
-  const blob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
-  document.getElementById('pwa-manifest').href=URL.createObjectURL(blob);
-  // Install banner
+  // Register real service worker
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW:', e));
+  }
+
+  // Install banner (Android Chrome)
   let deferred;
-  window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;if(!localStorage.getItem('pwa_dismissed'))showInstallBanner(deferred);});
-  window._installPrompt=()=>deferred;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault(); deferred = e;
+    if(!localStorage.getItem('pwa_dismissed')) showInstallBanner(deferred);
+  });
+  window._installPrompt = () => deferred;
 }
 
 function showInstallBanner(prompt){
