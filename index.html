@@ -537,6 +537,19 @@ function setSyncDot(state){ // 'syncing' | 'synced' | 'error' | 'offline'
 function arrToObj(arr){ const o={}; arr.forEach(i=>{ if(i&&i.id) o[i.id]=i; }); return o; }
 function objToArr(obj){ return obj ? Object.values(obj) : []; }
 
+// Firebase converts JS arrays to objects {0:…,1:…} — this converts them back
+function normalizeClient(c){
+  if(!c) return c;
+  const res={};
+  DAYS.forEach(d=>{
+    const raw=c.reservations?.[d];
+    if(!raw){ res[d]=[]; return; }
+    // If it's already an array, keep it; if it's an object (Firebase-ified), convert
+    res[d]=Array.isArray(raw) ? raw : Object.values(raw);
+  });
+  return {...c, reservations:res};
+}
+
 function initFirebase(){
   try {
     firebase.initializeApp(FB_CONFIG);
@@ -551,11 +564,10 @@ function initFirebase(){
     db.ref('clients').on('value', snap => {
       const data = snap.val();
       if (data !== null) {
-        clients = objToArr(data);
+        clients = objToArr(data).map(normalizeClient);
         localStorage.setItem('panos_clients', JSON.stringify(clients));
         refreshCurrentScreen();
       } else if (!localStorage.getItem('panos_clients')) {
-        // First launch: push default clients to Firebase
         const obj = arrToObj(JSON.parse(JSON.stringify(DEFAULT_CLIENTS)));
         db.ref('clients').set(obj);
       }
@@ -595,7 +607,8 @@ function todayKey(){const d=new Date();return`${d.getFullYear()}-${d.getMonth()+
 
 function loadClients(){
   const s=localStorage.getItem('panos_clients');
-  return s ? JSON.parse(s) : JSON.parse(JSON.stringify(DEFAULT_CLIENTS));
+  const raw = s ? JSON.parse(s) : JSON.parse(JSON.stringify(DEFAULT_CLIENTS));
+  return raw.map(normalizeClient);
 }
 function saveClients(){
   localStorage.setItem('panos_clients',JSON.stringify(clients));
