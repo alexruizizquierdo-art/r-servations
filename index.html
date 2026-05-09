@@ -1080,24 +1080,29 @@ function dismissInstall(){localStorage.setItem('pwa_dismissed','1');document.get
 function hideSplash() {
   const splash = document.getElementById('splash');
   if (!splash) return;
-  // Hide after animation completes (loader bar = 1.3s delay + 1.4s duration = 2.7s total)
-  setTimeout(() => {
+  function doHide(){
     splash.classList.add('hiding');
     setTimeout(() => { splash.classList.add('hidden'); }, 750);
-  }, 2700);
+  }
+  // Normal timing: after animations complete
+  setTimeout(doHide, 2700);
+  // Failsafe: force hide after 4s no matter what
+  setTimeout(doHide, 4000);
 }
 
 // ── INIT ──
 function init(){
-  clients=loadClients();orders=loadOrders();doneMap=loadDone();
-  const s=loadSettings();notifEnabled=s.notifEnabled||false;
-  el('notif-time').value=s.notifTime||'07:30';
-  el('notif-time').onchange=()=>{saveSettings();updateNotifUI();};
-  renderToday();updateNotifUI();
-  if(notifEnabled&&Notification.permission==='granted')scheduleNotif();
-  setupPWA();
-  initFirebase();
-  hideSplash();
+  try {
+    clients=loadClients();orders=loadOrders();doneMap=loadDone();
+    const s=loadSettings();notifEnabled=s.notifEnabled||false;
+    el('notif-time').value=s.notifTime||'07:30';
+    el('notif-time').onchange=()=>{saveSettings();updateNotifUI();};
+    renderToday();updateNotifUI();
+    if(notifEnabled&&Notification.permission==='granted')scheduleNotif();
+    setupPWA();
+    try { initFirebase(); } catch(e){ console.warn('Firebase:', e); setSyncDot('error'); }
+  } catch(e){ console.error('Init error:', e); }
+  hideSplash(); // Always called, even if something above fails
 }
 init();
 </script>
