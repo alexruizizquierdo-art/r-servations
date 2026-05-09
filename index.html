@@ -230,6 +230,42 @@ textarea.fi { resize: vertical; min-height: 70px; line-height: 1.5; }
 .sp.sel-commande { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); }
 .sp.sel-recu { background: var(--green-bg); border-color: var(--green); color: var(--green); }
 
+/* ABSENT STATE */
+.client-card.absent { border-color: #FCD34D; }
+.client-card.absent .card-top { background: #FFFBEB; }
+.absent-btn { display: flex; align-items: center; gap: 5px; padding: 7px 11px; border: 2px solid #FCD34D; border-radius: 24px; background: white; cursor: pointer; font-family: var(--font); font-size: 12px; font-weight: 600; color: #92400E; transition: all 0.2s; white-space: nowrap; flex-shrink: 0; }
+.absent-btn.active { background: #FCD34D; border-color: #F59E0B; color: #78350F; }
+.absent-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: #92400E; background: #FEF3C7; border: 1px solid #FCD34D; border-radius: 20px; padding: 3px 9px; margin-bottom: 8px; }
+.cashier-chip { font-size: 11px; color: var(--ink3); margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+
+/* COMMENT BOX */
+.comment-area { margin: 8px 14px 10px; }
+.comment-inp { width: 100%; padding: 8px 11px; border: 1.5px solid var(--border); border-radius: 10px; font-family: var(--font); font-size: 13px; color: var(--ink); background: #F8FBFE; outline: none; resize: none; line-height: 1.5; min-height: 38px; transition: border-color 0.2s; }
+.comment-inp:focus { border-color: var(--blue); min-height: 60px; }
+.comment-inp::placeholder { color: var(--ink3); }
+.comment-saved { font-size: 12px; color: var(--ink2); background: #EFF6FF; border-left: 3px solid var(--blue-border); padding: 6px 10px; border-radius: 0 8px 8px 0; cursor: pointer; }
+
+/* HISTORY */
+.hist-item { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; gap: 12px; align-items: flex-start; }
+.hist-item:last-child { border-bottom: none; }
+.hist-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+.hist-dot.done { background: var(--green); }
+.hist-dot.absent { background: #F59E0B; }
+.hist-dot.reset { background: var(--ink3); }
+.hist-dot.comment { background: var(--blue); }
+.hist-info { flex: 1; min-width: 0; }
+.hist-client { font-weight: 600; font-size: 14px; }
+.hist-detail { font-size: 12px; color: var(--ink2); margin-top: 2px; }
+.hist-time { font-size: 11px; color: var(--ink3); margin-top: 3px; }
+
+/* CASHIER MODAL */
+.cashier-modal-wrap { text-align: center; padding: 10px 0; }
+.cashier-modal-icon { font-size: 48px; margin-bottom: 12px; }
+.cashier-options { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.cashier-opt { padding: 14px; border: 2px solid var(--border); border-radius: 12px; background: white; cursor: pointer; font-family: var(--font); font-size: 16px; font-weight: 600; color: var(--ink); transition: all 0.18s; text-align: left; display: flex; align-items: center; gap: 12px; }
+.cashier-opt:hover, .cashier-opt.selected { border-color: var(--blue); background: var(--blue-bg); color: var(--blue); }
+.cashier-opt-avatar { width: 36px; height: 36px; border-radius: 10px; background: var(--blue-bg); border: 1.5px solid var(--blue-border); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+
 /* SWIPE */
 .client-card { position: relative; overflow: hidden; touch-action: pan-y; }
 .swipe-hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end; padding-right: 22px; gap: 10px; font-weight: 700; font-size: 15px; border-radius: var(--radius); pointer-events: none; opacity: 0; transition: opacity 0.15s; }
@@ -374,12 +410,27 @@ textarea.fi { resize: vertical; min-height: 70px; line-height: 1.5; }
   </div>
 
   <div id="screen-settings" class="screen">
+
+    <div class="set-section">
+      <div class="set-sec-title">Caissier actif</div>
+      <div class="set-card">
+        <div class="set-row">
+          <div><div class="srt" id="cashier-name-display">—</div><div class="srs">Caissier connecté</div></div>
+          <button class="set-btn" onclick="openCashierModal()">Changer</button>
+        </div>
+      </div>
+    </div>
+
     <div class="set-section">
       <div class="set-sec-title">Notifications</div>
       <div class="set-card">
         <div class="set-row">
-          <div><div class="srt">Heure du rappel quotidien</div><div class="srs">Notification envoyée chaque matin</div></div>
+          <div><div class="srt">Rappel du matin</div><div class="srs">Articles à mettre de côté</div></div>
           <input type="time" class="time-inp" id="notif-time" value="07:30" onchange="saveSettings()">
+        </div>
+        <div class="set-row">
+          <div><div class="srt">Rappel de fin de journée</div><div class="srs">Si des articles restent en attente</div></div>
+          <input type="time" class="time-inp" id="notif-time-end" value="18:00" onchange="saveSettings()">
         </div>
         <div class="set-row">
           <div><div class="srt">Activer les notifications</div><div class="srs" id="notif-status-text">Appuyez pour activer</div></div>
@@ -387,6 +438,14 @@ textarea.fi { resize: vertical; min-height: 70px; line-height: 1.5; }
         </div>
       </div>
     </div>
+
+    <div class="set-section">
+      <div class="set-sec-title">Historique du jour</div>
+      <div class="set-card" id="history-card">
+        <div style="padding:24px;text-align:center;color:var(--ink3);font-size:13px">Aucune action aujourd'hui</div>
+      </div>
+    </div>
+
     <div class="set-section">
       <div class="set-sec-title">Données</div>
       <div class="set-card">
@@ -409,7 +468,7 @@ textarea.fi { resize: vertical; min-height: 70px; line-height: 1.5; }
       <div class="set-sec-title">À propos</div>
       <div class="set-card">
         <div class="set-row"><div><div class="srt">Réservations</div><div class="srs">Gestion des réservations presse</div></div></div>
-        <div class="set-row"><div><div class="srt">Version</div><div class="srs">2.0.0</div></div></div>
+        <div class="set-row"><div><div class="srt">Version</div><div class="srs">3.0.0</div></div></div>
       </div>
     </div>
   </div>
@@ -493,6 +552,26 @@ textarea.fi { resize: vertical; min-height: 70px; line-height: 1.5; }
   </div>
 </div>
 
+<!-- CASHIER MODAL -->
+<div class="overlay" id="overlay-cashier">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="cashier-modal-wrap">
+      <div class="cashier-modal-icon">👤</div>
+      <h2 class="modal-title" style="text-align:center">Qui êtes-vous ?</h2>
+      <p style="font-size:14px;color:var(--ink2);margin-bottom:4px">Sélectionnez votre nom pour l'historique</p>
+    </div>
+    <div class="cashier-options" id="cashier-options"></div>
+    <div class="fg" style="margin-top:14px">
+      <label class="fl">Ou tapez un nouveau prénom</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" class="fi" id="cashier-new-inp" placeholder="Ex : Sophie" style="flex:1">
+        <button class="btn btn-primary" style="flex:0 0 auto;padding:11px 16px" onclick="addAndSelectCashier()">Ajouter</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -514,7 +593,15 @@ const DEFAULT_CLIENTS=[
   {id:'c11',nom:'Lemaire',prenom:'',tel:'',note:'',toujours:false,reservations:{lundi:['La Libre Belgique','La Meuse Liège'],mardi:['La Libre Belgique','La Meuse Liège'],mercredi:['La Libre Belgique','La Meuse Liège'],jeudi:['La Libre Belgique','La Meuse Liège','Paris Match'],vendredi:['La Libre Belgique','La Meuse Liège'],samedi:['La Libre Belgique','La Meuse Liège'],dimanche:[]}}
 ];
 
-let clients=[],orders=[],doneMap={},currentScreen='today',editingClientId=null,editingOrderId=null,selectedModalDay=null,modalReservations={},selectedWeekDay=null,currentOrderStatut='en_attente',orderFilter='tous',notifEnabled=false,notifScheduled=false;
+let clients=[],orders=[],doneMap={},history=[],currentScreen='today',editingClientId=null,editingOrderId=null,selectedModalDay=null,modalReservations={},selectedWeekDay=null,currentOrderStatut='en_attente',orderFilter='tous',notifEnabled=false,notifScheduled=false;
+let currentCashier='';
+
+// doneMap structure: { clientId: {state:'done'|'absent'|null, cashier:'', time:'', comment:''} }
+function getDoneState(id){ const e=doneMap[id]; if(!e)return null; return typeof e==='boolean'?(e?'done':null):e.state||null; }
+function getDoneEntry(id){ const e=doneMap[id]; if(!e)return{state:null,cashier:'',time:'',comment:''}; return typeof e==='boolean'?{state:e?'done':null,cashier:'',time:'',comment:''}:e; }
+function isDone(id){ return getDoneState(id)==='done'; }
+function isAbsent(id){ return getDoneState(id)==='absent'; }
+function isPending(id){ const s=getDoneState(id); return s!=='done'&&s!=='absent'; }
 
 // ── FIREBASE ──────────────────────────────────────────────────────────────────
 const FB_CONFIG = {
@@ -554,6 +641,10 @@ function normalizeClient(c){
 }
 
 function initFirebase(){
+  if(typeof firebase==='undefined'){
+    console.info('Firebase SDK non disponible — mode local activé');
+    setSyncDot('offline'); return;
+  }
   try {
     firebase.initializeApp(FB_CONFIG);
     db = firebase.database();
@@ -590,6 +681,14 @@ function initFirebase(){
         doneMap = data[todayKey()] || {};
         if (currentScreen === 'today') renderToday();
       }
+    });
+
+    db.ref('history').on('value', snap => {
+      const data = snap.val();
+      history = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
+      history.sort((a,b)=>new Date(b.ts)-new Date(a.ts));
+      localStorage.setItem('panos_history', JSON.stringify(history));
+      if (currentScreen === 'settings') renderHistory();
     });
 
     fbReady = true;
@@ -635,8 +734,23 @@ function saveDone(){
   if(db){ setSyncDot('syncing'); db.ref('done').set(all).then(()=>setSyncDot('synced')).catch(()=>setSyncDot('error')); }
 }
 
-function loadSettings(){const s=localStorage.getItem('panos_settings');return s?JSON.parse(s):{notifTime:'07:30',notifEnabled:false};}
-function saveSettings(){localStorage.setItem('panos_settings',JSON.stringify({notifTime:el('notif-time').value,notifEnabled}));}
+function loadHistory(){ const s=localStorage.getItem('panos_history'); return s?JSON.parse(s):[]; }
+function saveHistory(){
+  localStorage.setItem('panos_history',JSON.stringify(history));
+  if(db){ db.ref('history').set(history.slice(0,200).reduce((o,h,i)=>{o[i]=h;return o;},{})).catch(()=>{}); }
+}
+function addHistoryEntry(entry){
+  history.unshift({...entry, ts: new Date().toISOString(), date: todayKey()});
+  if(history.length>200) history=history.slice(0,200);
+  saveHistory();
+  if(currentScreen==='settings') renderHistory();
+}
+
+function loadSettings(){const s=localStorage.getItem('panos_settings');return s?JSON.parse(s):{notifTime:'07:30',notifTimeEnd:'18:00',notifEnabled:false,cashiers:['Sophie','Marie','Julie','Alex']};}
+function saveSettings(){
+  const cashiers=loadSettings().cashiers||[];
+  localStorage.setItem('panos_settings',JSON.stringify({notifTime:el('notif-time').value,notifTimeEnd:el('notif-time-end')?.value||'18:00',notifEnabled,cashiers}));
+}
 
 function el(id){return document.getElementById(id);}
 function uid(){return'x'+Date.now()+Math.random().toString(36).slice(2,5);}
@@ -713,32 +827,27 @@ function renderToday(){
   const idx=getTodayIdx();
   el('today-day').textContent=DAY_LABELS[idx];
   el('today-date').textContent=new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).replace(/^\w/,c=>c.toUpperCase());
-  const dc=clientsForDay(idx),total=dc.length,done=dc.filter(c=>doneMap[c.id]).length;
-  el('prog-fraction').textContent=done+'/'+total;
-  el('progress-bar').style.width=total?(done/total*100)+'%':'0%';
+  const dc=clientsForDay(idx);
+  const total=dc.length;
+  const doneCount=dc.filter(c=>isDone(c.id)).length;
+  el('prog-fraction').textContent=doneCount+'/'+total;
+  el('progress-bar').style.width=total?(doneCount/total*100)+'%':'0%';
   const container=el('today-cards');container.innerHTML='';
   if(!total){container.innerHTML=`<div class="empty"><div class="empty-icon">🎉</div><h3>Journée sans réservation</h3><p>Aucun article à mettre de côté ce ${DAY_LABELS[idx].toLowerCase()}.</p></div>`;return;}
 
-  const pending=dc.filter(c=>!doneMap[c.id]);
-  const doneList=dc.filter(c=>doneMap[c.id]);
+  const pending=dc.filter(c=>isPending(c.id));
+  const absentList=dc.filter(c=>isAbsent(c.id));
+  const doneList=dc.filter(c=>isDone(c.id));
 
-  function hasType(c,type){ return (c.reservations[DAYS[idx]]||[]).some(a=>artType(a)===type); }
-
-  function appendSection(clients, label){
-    if(!clients.length) return;
+  function addSection(list, label){
+    if(!list.length) return;
     const t=document.createElement('div');t.className='sec-title';t.textContent=label;container.appendChild(t);
-
-    // Sub-group: presse first, then tabac
-    const presseClients=clients.filter(c=>hasType(c,'presse'));
-    const tabacClients =clients.filter(c=>hasType(c,'tabac') && !hasType(c,'presse'));
-    const mixedClients =clients.filter(c=>hasType(c,'presse') && hasType(c,'tabac'));
-
-    // Actually: just show all in order but with a mini presse/tabac header inside the card
-    clients.forEach(c=>container.appendChild(buildCard(c,idx)));
+    list.forEach(c=>container.appendChild(buildCard(c,idx)));
   }
 
-  if(pending.length) appendSection(pending, `À mettre de côté — ${pending.length} client${pending.length>1?'s':''}`);
-  if(doneList.length) appendSection(doneList, `Mis de côté ✓ — ${doneList.length}`);
+  addSection(pending, `À mettre de côté — ${pending.length} client${pending.length>1?'s':''}`);
+  addSection(absentList, `Clients absents — ${absentList.length}`);
+  addSection(doneList, `Mis de côté ✓ — ${doneList.length}`);
 }
 
 function nameHTML(c){
@@ -749,11 +858,22 @@ function nameHTML(c){
 }
 
 function buildCard(client,dayIdx){
-  const arts=client.reservations[DAYS[dayIdx]]||[],isDone=!!doneMap[client.id];
+  const arts=client.reservations[DAYS[dayIdx]]||[];
+  const entry=getDoneEntry(client.id);
+  const state=entry.state;
+  const done=state==='done', absent=state==='absent';
+
   const card=document.createElement('div');
-  card.className='client-card'+(isDone?' done':'');
-  const hintLabel = isDone ? '↩ Remettre en attente' : '✓ Mis de côté !';
-  const hintClass = isDone ? 'grey' : 'green';
+  card.className='client-card'+(done?' done':absent?' absent':'');
+
+  const hintLabel=done?'↩ Remettre en attente':absent?'↩ Remettre en attente':'✓ Mis de côté !';
+  const hintClass=done?'grey':absent?'grey':'green';
+
+  const cashierLine=entry.cashier?`<div class="cashier-chip">👤 ${entry.cashier} · ${entry.time||''}</div>`:'';
+  const commentHTML=entry.comment
+    ?`<div class="comment-area"><div class="comment-saved" onclick="editComment('${client.id}')">💬 ${entry.comment}</div></div>`
+    :`<div class="comment-area"><textarea class="comment-inp" placeholder="💬 Ajouter un commentaire…" rows="1" onblur="saveComment('${client.id}',this.value)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();saveComment('${client.id}',this.value);this.blur();}"></textarea></div>`;
+
   card.innerHTML=`
     <div class="swipe-hint ${hintClass}"><span>${hintLabel}</span></div>
     <div class="card-inner">
@@ -761,58 +881,98 @@ function buildCard(client,dayIdx){
         <div class="card-client-info">
           ${nameHTML(client)}
           ${client.tel?`<div class="card-tel">📞 ${client.tel}</div>`:''}
+          ${cashierLine}
         </div>
-        <button class="check-btn ${isDone?'checked':''}" onclick="toggleDone('${client.id}')">
-          ${isDone?'✓ Mis de côté':'○ Mettre de côté'}
-        </button>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-shrink:0">
+          <button class="check-btn ${done?'checked':''}" onclick="setClientState('${client.id}','${done?'reset':'done'}')">
+            ${done?'✓ Mis de côté':'○ Mettre de côté'}
+          </button>
+          <button class="absent-btn ${absent?'active':''}" onclick="setClientState('${client.id}','${absent?'reset':'absent'}')">
+            ${absent?'✗ Absent':'✗ Absent'}
+          </button>
+        </div>
       </div>
       <div class="card-body">
+        ${absent?'<div class="absent-badge">✗ Client absent aujourd\'hui</div>':''}
         ${client.toujours?'<div class="always-badge">♾️ Toujours garder</div>':''}
         ${chipsHTML(arts)}
         ${client.note?`<div class="client-note-box">ℹ️ ${client.note}</div>`:''}
       </div>
+      ${commentHTML}
     </div>`;
 
-  // Swipe gesture
-  let startX=0, startY=0, isDragging=false, triggered=false;
-  const inner = card.querySelector('.card-inner');
-  const hint  = card.querySelector('.swipe-hint');
-  const THRESHOLD = 90;
-
-  card.addEventListener('touchstart', e=>{
-    startX=e.touches[0].clientX; startY=e.touches[0].clientY;
-    isDragging=false; triggered=false;
-  },{passive:true});
-
-  card.addEventListener('touchmove', e=>{
-    const dx=e.touches[0].clientX-startX;
-    const dy=e.touches[0].clientY-startY;
-    if(!isDragging && Math.abs(dy)>Math.abs(dx)) return; // vertical scroll
-    if(dx > -10) return; // only left swipe
+  // Swipe
+  let startX=0,startY=0,isDragging=false,triggered=false;
+  const inner=card.querySelector('.card-inner');
+  const hint=card.querySelector('.swipe-hint');
+  const THRESHOLD=90;
+  card.addEventListener('touchstart',e=>{startX=e.touches[0].clientX;startY=e.touches[0].clientY;isDragging=false;triggered=false;},{passive:true});
+  card.addEventListener('touchmove',e=>{
+    const dx=e.touches[0].clientX-startX,dy=e.touches[0].clientY-startY;
+    if(!isDragging&&Math.abs(dy)>Math.abs(dx))return;
+    if(dx>-10)return;
     isDragging=true;
-    const move=Math.max(dx, -THRESHOLD*1.4);
+    const move=Math.max(dx,-THRESHOLD*1.4);
     inner.style.transform=`translateX(${move}px)`;
-    hint.style.opacity=Math.min(1, -move/THRESHOLD);
-    if(-move>=THRESHOLD && !triggered){
-      triggered=true;
-      inner.style.transition='transform 0.18s';
-      inner.style.transform=`translateX(${-THRESHOLD*1.4}px)`;
-      navigator.vibrate&&navigator.vibrate(40);
-    }
+    hint.style.opacity=Math.min(1,-move/THRESHOLD);
+    if(-move>=THRESHOLD&&!triggered){triggered=true;inner.style.transition='transform 0.18s';inner.style.transform=`translateX(${-THRESHOLD*1.4}px)`;navigator.vibrate&&navigator.vibrate(40);}
   },{passive:true});
-
-  card.addEventListener('touchend', ()=>{
-    if(triggered){ toggleDone(client.id); return; }
-    inner.style.transition='transform 0.3s cubic-bezier(.4,0,.2,1)';
-    inner.style.transform='translateX(0)';
-    hint.style.opacity='0';
+  card.addEventListener('touchend',()=>{
+    if(triggered){setClientState(client.id,done||absent?'reset':'done');return;}
+    inner.style.transition='transform 0.3s cubic-bezier(.4,0,.2,1)';inner.style.transform='translateX(0)';hint.style.opacity='0';
     setTimeout(()=>inner.style.transition='',320);
   });
-
   return card;
 }
 
-function toggleDone(id){doneMap[id]=!doneMap[id];saveDone();renderToday();toast(doneMap[id]?'✓ Article mis de côté':'↩ Remis en attente');}
+function setClientState(id, action){
+  const client=clients.find(c=>c.id===id);
+  const clientName=client?fullName(client):id;
+  const now=new Date();
+  const timeStr=now.toLocaleTimeString('fr-BE',{hour:'2-digit',minute:'2-digit'});
+  const prev=getDoneEntry(id);
+
+  if(action==='done'){
+    doneMap[id]={state:'done',cashier:currentCashier,time:timeStr,comment:prev.comment||''};
+    addHistoryEntry({action:'done',clientId:id,clientName,cashier:currentCashier,time:timeStr});
+    toast('✓ Mis de côté — '+timeStr);
+  } else if(action==='absent'){
+    doneMap[id]={state:'absent',cashier:currentCashier,time:timeStr,comment:prev.comment||''};
+    addHistoryEntry({action:'absent',clientId:id,clientName,cashier:currentCashier,time:timeStr});
+    toast('✗ Client marqué absent');
+  } else {
+    doneMap[id]={state:null,cashier:'',time:'',comment:prev.comment||''};
+    addHistoryEntry({action:'reset',clientId:id,clientName,cashier:currentCashier,time:timeStr});
+    toast('↩ Remis en attente');
+  }
+  saveDone();renderToday();
+}
+
+function saveComment(id,text){
+  const t=text.trim();
+  const prev=getDoneEntry(id);
+  doneMap[id]={...prev,comment:t};
+  saveDone();
+  if(t){
+    const client=clients.find(c=>c.id===id);
+    addHistoryEntry({action:'comment',clientId:id,clientName:client?fullName(client):id,cashier:currentCashier,time:new Date().toLocaleTimeString('fr-BE',{hour:'2-digit',minute:'2-digit'}),comment:t});
+    toast('💬 Commentaire enregistré');
+  }
+  renderToday();
+}
+
+function editComment(id){
+  const prev=getDoneEntry(id);
+  doneMap[id]={...prev,comment:''};
+  saveDone();renderToday();
+  // Focus the textarea after render
+  setTimeout(()=>{
+    const card=document.querySelector(`[onclick*="${id}"] .comment-inp`);
+    if(card)card.focus();
+  },100);
+}
+
+function toggleDone(id){ setClientState(id, isDone(id)||isAbsent(id)?'reset':'done'); }
 
 // ── WEEK ──
 function renderWeek(){
@@ -995,7 +1155,64 @@ function deleteOrder(){
 }
 
 // ── SETTINGS ──
-function renderSettings(){const s=loadSettings();el('notif-time').value=s.notifTime||'07:30';notifEnabled=s.notifEnabled||false;updateNotifUI();}
+function renderSettings(){
+  const s=loadSettings();
+  el('notif-time').value=s.notifTime||'07:30';
+  if(el('notif-time-end')) el('notif-time-end').value=s.notifTimeEnd||'18:00';
+  notifEnabled=s.notifEnabled||false;
+  updateNotifUI();
+  el('cashier-name-display').textContent=currentCashier||'Non défini';
+  renderHistory();
+}
+
+function renderHistory(){
+  const card=el('history-card');if(!card)return;
+  const todayEntries=history.filter(h=>h.date===todayKey());
+  if(!todayEntries.length){card.innerHTML='<div style="padding:24px;text-align:center;color:var(--ink3);font-size:13px">Aucune action aujourd\'hui</div>';return;}
+  const labels={done:'✓ Mis de côté',absent:'✗ Absent',reset:'↩ Remis en attente',comment:'💬 Commentaire'};
+  card.innerHTML=todayEntries.map(h=>`
+    <div class="hist-item">
+      <div class="hist-dot ${h.action}"></div>
+      <div class="hist-info">
+        <div class="hist-client">${h.clientName||'—'}</div>
+        <div class="hist-detail">${labels[h.action]||h.action}${h.comment?' : "'+h.comment+'"':''}</div>
+        <div class="hist-time">${h.cashier?'👤 '+h.cashier+' · ':''}${h.time||''}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── CASHIER ──
+function openCashierModal(){
+  const s=loadSettings();
+  const cashiers=s.cashiers||['Sophie','Marie','Julie','Alex'];
+  const opts=el('cashier-options');
+  opts.innerHTML=cashiers.map(name=>`
+    <button class="cashier-opt ${name===currentCashier?'selected':''}" onclick="selectCashier('${name}')">
+      <div class="cashier-opt-avatar">👤</div>${name}
+    </button>`).join('');
+  el('cashier-new-inp').value='';
+  el('overlay-cashier').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
+function selectCashier(name){
+  currentCashier=name;
+  localStorage.setItem('currentCashier',name);
+  el('overlay-cashier').classList.remove('open');
+  document.body.style.overflow='';
+  el('cashier-name-display').textContent=name;
+  toast('👤 Connecté en tant que '+name);
+}
+
+function addAndSelectCashier(){
+  const name=el('cashier-new-inp').value.trim();
+  if(!name)return;
+  const s=loadSettings();
+  const cashiers=s.cashiers||[];
+  if(!cashiers.includes(name)) cashiers.push(name);
+  localStorage.setItem('panos_settings',JSON.stringify({...s,cashiers}));
+  selectCashier(name);
+}
 
 function resetToday(){if(!confirm('Remettre tous les articles à "non mis de côté" ?'))return;doneMap={};saveDone();if(currentScreen==='today')renderToday();toast('↺ Journée réinitialisée');}
 
@@ -1029,10 +1246,30 @@ function scheduleNotif(){
   if(notifScheduled)return;notifScheduled=true;
   const check=()=>{
     if(!notifEnabled||Notification.permission!=='granted')return;
-    const now=new Date();const[h,m]=(el('notif-time').value||'07:30').split(':').map(Number);
-    const target=new Date(now);target.setHours(h,m,0,0);
-    const key='panos_notif_'+todayKey();
-    if(now>=target&&!localStorage.getItem(key)){localStorage.setItem(key,'1');const dc=clientsForDay(getTodayIdx());const rem=dc.filter(c=>!doneMap[c.id]).length;new Notification('Réservations',{body:rem>0?`${rem} article${rem>1?'s':''} à mettre de côté`:'Tous les articles sont mis de côté ✓',tag:'panos-daily',requireInteraction:true});}
+    const now=new Date();
+    const s=loadSettings();
+
+    // Morning reminder
+    const[hm,mm]=(s.notifTime||'07:30').split(':').map(Number);
+    const morning=new Date(now);morning.setHours(hm,mm,0,0);
+    const keyM='panos_notif_m_'+todayKey();
+    if(now>=morning&&!localStorage.getItem(keyM)){
+      localStorage.setItem(keyM,'1');
+      const dc=clientsForDay(getTodayIdx());
+      const rem=dc.filter(c=>isPending(c.id)).length;
+      if(rem>0) new Notification('Réservations — Rappel matin',{body:`${rem} article${rem>1?'s':''} à mettre de côté aujourd'hui`,tag:'panos-morning',requireInteraction:true});
+    }
+
+    // End-of-day reminder
+    const[he,me]=(s.notifTimeEnd||'18:00').split(':').map(Number);
+    const evening=new Date(now);evening.setHours(he,me,0,0);
+    const keyE='panos_notif_e_'+todayKey();
+    if(now>=evening&&!localStorage.getItem(keyE)){
+      localStorage.setItem(keyE,'1');
+      const dc=clientsForDay(getTodayIdx());
+      const rem=dc.filter(c=>isPending(c.id)).length;
+      if(rem>0) new Notification('Réservations — Fin de journée',{body:`⚠️ ${rem} article${rem>1?'s n\'ont':' n\'a'} pas été mis de côté !`,tag:'panos-evening',requireInteraction:true});
+    }
   };check();setInterval(check,60000);
 }
 
@@ -1072,8 +1309,8 @@ function drawIcon(size) {
 }
 
 function setupPWA(){
-  // Register real service worker
-  if('serviceWorker' in navigator){
+  // Register service worker only on GitHub Pages (not in preview)
+  if('serviceWorker' in navigator && location.hostname.includes('github.io')){
     navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW:', e));
   }
 
@@ -1111,16 +1348,23 @@ function hideSplash() {
 // ── INIT ──
 function init(){
   try {
-    clients=loadClients();orders=loadOrders();doneMap=loadDone();
+    clients=loadClients();orders=loadOrders();doneMap=loadDone();history=loadHistory();
+    currentCashier=localStorage.getItem('currentCashier')||'';
     const s=loadSettings();notifEnabled=s.notifEnabled||false;
     el('notif-time').value=s.notifTime||'07:30';
+    if(el('notif-time-end')) el('notif-time-end').value=s.notifTimeEnd||'18:00';
     el('notif-time').onchange=()=>{saveSettings();updateNotifUI();};
+    if(el('notif-time-end')) el('notif-time-end').onchange=()=>saveSettings();
     renderToday();updateNotifUI();
     if(notifEnabled&&Notification.permission==='granted')scheduleNotif();
     setupPWA();
-    try { initFirebase(); } catch(e){ console.warn('Firebase:', e); setSyncDot('error'); }
-  } catch(e){ console.error('Init error:', e); }
-  hideSplash(); // Always called, even if something above fails
+    try { initFirebase(); } catch(e){ console.warn('Firebase:',e); setSyncDot('error'); }
+    // Prompt for cashier if not set
+    if(!currentCashier){
+      setTimeout(()=>openCashierModal(), 3500);
+    }
+  } catch(e){ console.error('Init error:',e); }
+  hideSplash();
 }
 init();
 </script>
