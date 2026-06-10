@@ -18,6 +18,7 @@
 <meta name="theme-color" content="#1F4E78">
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
 <title>Réservations</title>
@@ -230,6 +231,17 @@ textarea.fi { resize: vertical; min-height: 70px; line-height: 1.5; }
 .sp.sel-commande { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); }
 .sp.sel-recu { background: var(--green-bg); border-color: var(--green); color: var(--green); }
 
+/* HOLIDAY BANNER */
+#holiday-banner { display:none; margin-bottom:10px; border-radius:var(--radius); padding:13px 16px; box-shadow:var(--shadow); }
+#holiday-banner.today-holiday { background:#FEF2F2; border:1px solid #FCA5A5; }
+#holiday-banner.tomorrow-holiday { background:#FEF9C3; border:1px solid #FDE047; }
+.holiday-title { font-weight:700; font-size:15px; }
+.holiday-today .holiday-title { color:#B91C1C; }
+.holiday-tomorrow .holiday-title { color:#92400E; }
+.holiday-detail { font-size:13px; margin-top:4px; line-height:1.5; }
+.holiday-today .holiday-detail { color:#7F1D1D; }
+.holiday-tomorrow .holiday-detail { color:#78350F; }
+
 /* ABSENT STATE */
 .client-card.absent { border-color: #FCD34D; }
 .client-card.absent .card-top { background: #FFFBEB; }
@@ -383,6 +395,7 @@ textarea.fi { resize: vertical; min-height: 70px; line-height: 1.5; }
       <div><div id="prog-fraction">0/0</div><div id="prog-label">mis de côté</div></div>
     </div>
     <div class="progress-bar-wrap"><div id="progress-bar"></div></div>
+    <div id="holiday-banner"></div>
     <div id="today-cards"></div>
   </div>
 
@@ -647,6 +660,22 @@ function initFirebase(){
   }
   try {
     firebase.initializeApp(FB_CONFIG);
+
+    // Authentification anonyme — requise par les règles de sécurité
+    firebase.auth().signInAnonymously().then(() => {
+      startFirebaseListeners();
+    }).catch(e => {
+      console.warn('Auth anonyme échouée:', e);
+      setSyncDot('error');
+    });
+  } catch(e) {
+    console.warn('Firebase init failed:', e);
+    setSyncDot('error');
+  }
+}
+
+function startFirebaseListeners(){
+  try {
     db = firebase.database();
 
     // Connectivity indicator
@@ -823,10 +852,100 @@ function navigate(screen){
 function handleFab(){if(currentScreen==='clients')openClientModal(null);else if(currentScreen==='commander')openOrderModal(null);}
 
 // ── TODAY ──
+// ── JOURS FÉRIÉS BELGES ───────────────────────────────────────────────────────
+function getEaster(year){
+  // Algorithme de Meeus/Jones/Butcher
+  const a=year%19,b=Math.floor(year/100),c=year%100;
+  const d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25);
+  const g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30;
+  const i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7;
+  const m=Math.floor((a+11*h+22*l)/451);
+  const month=Math.floor((h+l-7*m+114)/31);
+  const day=((h+l-7*m+114)%31)+1;
+  return new Date(year,month-1,day);
+}
+
+function getBelgianHolidays(year){
+  const easter=getEaster(year);
+  const add=(d,days)=>{ const n=new Date(d); n.setDate(n.getDate()+days); return n; };
+  const fix=(m,d)=>new Date(year,m-1,d);
+
+  return [
+    { date: fix(1,1),   name:"Jour de l'An",            anticipee:true  },
+    { date: add(easter,-2), name:"Vendredi Saint",       anticipee:false },
+    { date: add(easter,0),  name:"Pâques",               anticipee:true  },
+    { date: add(easter,1),  name:"Lundi de Pâques",      anticipee:true  },
+    { date: fix(5,1),   name:"Fête du Travail",           anticipee:true  },
+    { date: add(easter,39), name:"Ascension",            anticipee:true  },
+    { date: add(easter,49), name:"Pentecôte",            anticipee:true  },
+    { date: add(easter,50), name:"Lundi de Pentecôte",   anticipee:true  },
+    { date: fix(7,21),  name:"Fête Nationale",            anticipee:true  },
+    { date: fix(8,15),  name:"Assomption",                anticipee:true  },
+    { date: fix(11,1),  name:"Toussaint",                 anticipee:true  },
+    { date: fix(11,2),  name:"Jour des Morts",            anticipee:false },
+    { date: fix(11,11), name:"Armistice",                 anticipee:true  },
+    { date: fix(12,25), name:"Noël",                      anticipee:true  },
+    { date: fix(12,26), name:"26 décembre",               anticipee:true  },
+  ];
+}
+
+function dateKey(d){ return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; }
+
+function getHolidayInfo(d){
+  const holidays=getBelgianHolidays(d.getFullYear());
+  const key=dateKey(d);
+  return holidays.find(h=>dateKey(h.date)===key)||null;
+}
+
+function getTomorrowHoliday(){
+  const tomorrow=new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+  const h=getHolidayInfo(tomorrow);
+  if(h&&h.anticipee) return {...h, date:tomorrow};
+  return null;
+}
+
+function updateHolidayBanner(){
+  const banner=el('holiday-banner');
+  const today=new Date();
+  const todayH=getHolidayInfo(today);
+  const tomorrowH=getTomorrowHoliday();
+
+  if(todayH){
+    banner.style.display='block';
+    banner.className='holiday-banner';
+    banner.innerHTML=`
+      <div class="holiday-today">
+        <div class="holiday-title">🚫 Pas de livraison aujourd'hui — ${todayH.name}</div>
+        <div class="holiday-detail">Aucun journal ni magazine n'est livré ce jour férié. Les articles ont normalement été mis de côté la veille.</div>
+      </div>`;
+    banner.style.background='#FEF2F2';
+    banner.style.border='1px solid #FCA5A5';
+    banner.style.borderRadius='var(--radius)';
+    banner.style.padding='13px 16px';
+    banner.style.boxShadow='var(--shadow)';
+  } else if(tomorrowH){
+    banner.style.display='block';
+    banner.innerHTML=`
+      <div class="holiday-tomorrow">
+        <div class="holiday-title">⚠️ Demain : ${tomorrowH.name}</div>
+        <div class="holiday-detail">Pas de livraison demain. Pensez à mettre de côté les titres du lendemain <strong>aujourd'hui</strong> si une livraison anticipée est prévue.</div>
+      </div>`;
+    banner.style.background='#FEF9C3';
+    banner.style.border='1px solid #FDE047';
+    banner.style.borderRadius='var(--radius)';
+    banner.style.padding='13px 16px';
+    banner.style.boxShadow='var(--shadow)';
+  } else {
+    banner.style.display='none';
+    banner.innerHTML='';
+  }
+}
+
 function renderToday(){
   const idx=getTodayIdx();
   el('today-day').textContent=DAY_LABELS[idx];
   el('today-date').textContent=new Date().toLocaleDateString('fr-BE',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).replace(/^\w/,c=>c.toUpperCase());
+  updateHolidayBanner();
   const dc=clientsForDay(idx);
   const total=dc.length;
   const doneCount=dc.filter(c=>isDone(c.id)).length;
@@ -977,14 +1096,29 @@ function toggleDone(id){ setClientState(id, isDone(id)||isAbsent(id)?'reset':'do
 // ── WEEK ──
 function renderWeek(){
   const ti=getTodayIdx();if(selectedWeekDay===null)selectedWeekDay=ti;
-  el('week-pills').innerHTML=DAYS.map((d,i)=>`<div class="week-pill ${i===ti?'today':''} ${i===selectedWeekDay&&i!==ti?'selected':''}" onclick="selectWeekDay(${i})"><div class="wp-abbr">${DAY_SHORT[i]}</div><div class="wp-count">${clientsForDay(i).length}</div></div>`).join('');
+  const today=new Date();
+  el('week-pills').innerHTML=DAYS.map((d,i)=>{
+    const diff=i-ti; const dayDate=new Date(today); dayDate.setDate(today.getDate()+diff);
+    const holiday=getHolidayInfo(dayDate);
+    const mark=holiday?'<div style="font-size:9px;line-height:1;margin-top:2px">🚫</div>':'';
+    return `<div class="week-pill ${i===ti?'today':''} ${i===selectedWeekDay&&i!==ti?'selected':''}" onclick="selectWeekDay(${i})">
+      <div class="wp-abbr">${DAY_SHORT[i]}</div>
+      <div class="wp-count">${clientsForDay(i).length}</div>
+      ${mark}
+    </div>`;
+  }).join('');
   renderWeekDetail(selectedWeekDay);
 }
 function selectWeekDay(i){selectedWeekDay=i;renderWeek();}
 function renderWeekDetail(i){
   const dc=clientsForDay(i),det=el('week-detail');
-  if(!dc.length){det.innerHTML=`<div class="empty"><div class="empty-icon">📰</div><h3>Aucune réservation</h3><p>Pas d'articles le ${DAY_LABELS[i].toLowerCase()}.</p></div>`;return;}
-  det.innerHTML=`<div class="sec-title">${DAY_LABELS[i]} — ${dc.length} client${dc.length>1?'s':''}</div>`;
+  // Holiday check for this week day
+  const ti=getTodayIdx(); const diff=i-ti;
+  const dayDate=new Date(); dayDate.setDate(dayDate.getDate()+diff);
+  const holiday=getHolidayInfo(dayDate);
+  const holidayBanner=holiday?`<div style="background:#FEF2F2;border:1px solid #FCA5A5;border-radius:var(--radius);padding:12px 14px;margin-bottom:12px;font-size:13px;color:#B91C1C"><strong>🚫 ${holiday.name}</strong> — Pas de livraison ce jour.</div>`:'';
+  if(!dc.length){det.innerHTML=holidayBanner+`<div class="empty"><div class="empty-icon">📰</div><h3>Aucune réservation</h3><p>Pas d'articles le ${DAY_LABELS[i].toLowerCase()}.</p></div>`;return;}
+  det.innerHTML=holidayBanner+`<div class="sec-title">${DAY_LABELS[i]} — ${dc.length} client${dc.length>1?'s':''}</div>`;
   dc.forEach(c=>{const div=document.createElement('div');div.className='client-card';const arts=c.reservations[DAYS[i]]||[];div.innerHTML=`<div class="card-top"><div class="card-client-info">${nameHTML(c)}${c.tel?`<div class="card-tel">📞 ${c.tel}</div>`:''}</div></div><div class="card-body">${c.toujours?'<div class="always-badge">♾️ Toujours garder</div>':''}${chipsHTML(arts)}${c.note?`<div class="client-note-box">ℹ️ ${c.note}</div>`:''}</div>`;det.appendChild(div);});
 }
 
