@@ -510,6 +510,23 @@ textarea.fi { resize: vertical; min-height: 70px; line-height: 1.5; }
       <div><div class="tl">Toujours garder les articles</div><div class="tsl">Même si le client ne vient pas le jour J</div></div>
       <button class="tog" id="f-toujours" onclick="this.classList.toggle('on')"></button>
     </div>
+    <div class="toggle-row">
+      <div><div class="tl">⏸️ Mettre en pause</div><div class="tsl">Aucune réservation pendant une période (vacances…)</div></div>
+      <button class="tog" id="f-pause" onclick="togglePauseFields()"></button>
+    </div>
+    <div id="pause-dates" style="display:none;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:12px;margin-bottom:14px">
+      <div style="display:flex;gap:10px">
+        <div style="flex:1">
+          <label class="fl">Du</label>
+          <input type="date" class="fi" id="f-pause-start">
+        </div>
+        <div style="flex:1">
+          <label class="fl">Au</label>
+          <input type="date" class="fi" id="f-pause-end">
+        </div>
+      </div>
+      <p style="font-size:12px;color:#9A3412;margin-top:8px">Le client n'apparaîtra pas dans les réservations pendant cette période. Il réapparaît automatiquement ensuite.</p>
+    </div>
     <div class="fg" style="margin-top:14px">
       <label class="fl">Articles réservés par jour</label>
       <p style="font-size:13px;color:var(--ink3);margin-bottom:9px">Touchez un jour pour configurer ses articles</p>
@@ -830,7 +847,30 @@ function sortKey(c){
   return full.replace(TITLES,'').toLowerCase();
 }
 function getTodayIdx(){const d=new Date().getDay();return d===0?6:d-1;}
-function clientsForDay(i){return clients.filter(c=>c.reservations[DAYS[i]]&&c.reservations[DAYS[i]].length>0).sort((a,b)=>sortKey(a).localeCompare(sortKey(b),'fr'));}
+
+// Pause: returns true if client is paused on the given date (default today)
+function isPaused(c, dateObj){
+  if(!c.pause||!c.pause.start||!c.pause.end) return false;
+  const d=dateObj||new Date();
+  const day=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+  const start=new Date(c.pause.start+'T00:00:00');
+  const end=new Date(c.pause.end+'T00:00:00');
+  return day>=start && day<=end;
+}
+function pauseLabel(c){
+  if(!c.pause||!c.pause.start||!c.pause.end) return '';
+  const f=s=>new Date(s+'T00:00:00').toLocaleDateString('fr-BE',{day:'numeric',month:'short'});
+  return `${f(c.pause.start)} → ${f(c.pause.end)}`;
+}
+
+function clientsForDay(i, dateObj){
+  // dateObj is the actual date for that weekday (for pause check); default = today for today's index
+  const refDate = dateObj || (i===getTodayIdx() ? new Date() : null);
+  return clients
+    .filter(c=>c.reservations[DAYS[i]]&&c.reservations[DAYS[i]].length>0)
+    .filter(c=> refDate ? !isPaused(c, refDate) : true)
+    .sort((a,b)=>sortKey(a).localeCompare(sortKey(b),'fr'));
+}
 
 let toastTimer;
 function toast(msg){const t=el('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2600);}
@@ -1103,7 +1143,7 @@ function renderWeek(){
     const mark=holiday?'<div style="font-size:9px;line-height:1;margin-top:2px">🚫</div>':'';
     return `<div class="week-pill ${i===ti?'today':''} ${i===selectedWeekDay&&i!==ti?'selected':''}" onclick="selectWeekDay(${i})">
       <div class="wp-abbr">${DAY_SHORT[i]}</div>
-      <div class="wp-count">${clientsForDay(i).length}</div>
+      <div class="wp-count">${clientsForDay(i, dayDate).length}</div>
       ${mark}
     </div>`;
   }).join('');
@@ -1111,10 +1151,9 @@ function renderWeek(){
 }
 function selectWeekDay(i){selectedWeekDay=i;renderWeek();}
 function renderWeekDetail(i){
-  const dc=clientsForDay(i),det=el('week-detail');
-  // Holiday check for this week day
   const ti=getTodayIdx(); const diff=i-ti;
   const dayDate=new Date(); dayDate.setDate(dayDate.getDate()+diff);
+  const dc=clientsForDay(i, dayDate),det=el('week-detail');
   const holiday=getHolidayInfo(dayDate);
   const holidayBanner=holiday?`<div style="background:#FEF2F2;border:1px solid #FCA5A5;border-radius:var(--radius);padding:12px 14px;margin-bottom:12px;font-size:13px;color:#B91C1C"><strong>🚫 ${holiday.name}</strong> — Pas de livraison ce jour.</div>`:'';
   if(!dc.length){det.innerHTML=holidayBanner+`<div class="empty"><div class="empty-icon">📰</div><h3>Aucune réservation</h3><p>Pas d'articles le ${DAY_LABELS[i].toLowerCase()}.</p></div>`;return;}
@@ -1134,7 +1173,10 @@ function renderClients(){
       ? `<div style="font-size:10px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:0.07em;line-height:1;margin-bottom:2px">${civility}</div><div class="ci-name">${name}</div>`
       : `<div class="ci-name">${name}</div>`;
     const dots=DAYS.map((d,i)=>`<div class="dot ${c.reservations[d]&&c.reservations[d].length?'on':''}">${DAY_SHORT[i][0]}</div>`).join('');
-    return`<div class="client-item"><div class="client-item-main" onclick="openClientModal('${c.id}')"><div class="avatar">${initials(c.nom,c.prenom)}</div><div class="ci-info">${nameBlock}<div class="ci-tel">${c.tel?'📞 '+c.tel:'<span style="color:var(--ink3)">Aucun tél.</span>'}</div><div class="ci-dots">${dots}</div></div></div><button class="del-inline-btn" onclick="confirmDeleteClient('${c.id}')" title="Supprimer">🗑</button></div>`;
+    const paused=isPaused(c);
+    const hasPause=c.pause&&c.pause.start&&c.pause.end;
+    const pauseTag=hasPause?`<div style="font-size:11px;color:#9A3412;background:#FFF7ED;border:1px solid #FED7AA;border-radius:20px;padding:2px 9px;margin-top:5px;display:inline-block">⏸️ ${paused?'En pause':'Pause prévue'} · ${pauseLabel(c)}</div>`:'';
+    return`<div class="client-item" style="${paused?'opacity:0.65':''}"><div class="client-item-main" onclick="openClientModal('${c.id}')"><div class="avatar">${initials(c.nom,c.prenom)}</div><div class="ci-info">${nameBlock}<div class="ci-tel">${c.tel?'📞 '+c.tel:'<span style="color:var(--ink3)">Aucun tél.</span>'}</div><div class="ci-dots">${dots}</div>${pauseTag}</div></div><button class="del-inline-btn" onclick="confirmDeleteClient('${c.id}')" title="Supprimer">🗑</button></div>`;
   }).join('');
 }
 
@@ -1145,6 +1187,17 @@ function confirmDeleteClient(id){
 }
 
 // ── CLIENT MODAL ──
+function togglePauseFields(){
+  const tog=el('f-pause');
+  tog.classList.toggle('on');
+  el('pause-dates').style.display=tog.classList.contains('on')?'block':'none';
+  // Prefill default dates if empty
+  if(tog.classList.contains('on') && !el('f-pause-start').value){
+    const today=new Date().toISOString().slice(0,10);
+    el('f-pause-start').value=today;
+  }
+}
+
 function openClientModal(clientId){
   editingClientId=clientId;selectedModalDay=null;modalReservations={};
   if(clientId){
@@ -1152,12 +1205,20 @@ function openClientModal(clientId){
     el('modal-client-title').textContent='Modifier le client';
     el('f-nom').value=c.nom;el('f-prenom').value=c.prenom||'';el('f-tel').value=c.tel||'';el('f-note').value=c.note||'';
     el('f-toujours').classList.toggle('on',!!c.toujours);
+    // Pause
+    const hasPause=!!(c.pause&&c.pause.start&&c.pause.end);
+    el('f-pause').classList.toggle('on',hasPause);
+    el('pause-dates').style.display=hasPause?'block':'none';
+    el('f-pause-start').value=c.pause?.start||'';
+    el('f-pause-end').value=c.pause?.end||'';
     modalReservations=JSON.parse(JSON.stringify(c.reservations));
     el('del-client-wrap').style.display='block';
   } else {
     el('modal-client-title').textContent='Nouveau client';
     el('f-nom').value='';el('f-prenom').value='';el('f-tel').value='';el('f-note').value='';
     el('f-toujours').classList.remove('on');DAYS.forEach(d=>modalReservations[d]=[]);
+    el('f-pause').classList.remove('on');el('pause-dates').style.display='none';
+    el('f-pause-start').value='';el('f-pause-end').value='';
     el('del-client-wrap').style.display='none';
   }
   updateDaySelectors();el('articles-panel').innerHTML=`<p style="color:var(--ink3);font-size:13px;text-align:center;padding:10px 0">Sélectionnez un jour ci-dessus</p>`;
@@ -1216,7 +1277,15 @@ function toggleArtType(i){
 function saveClient(){
   const nom=el('f-nom').value.trim();if(!nom){toast('⚠️ Le nom est obligatoire');el('f-nom').focus();return;}
   const res={};DAYS.forEach(d=>{res[d]=(modalReservations[d]||[]).filter(a=>artNom(a).trim());});
-  const data={nom,prenom:el('f-prenom').value.trim(),tel:el('f-tel').value.trim(),note:el('f-note').value.trim(),toujours:el('f-toujours').classList.contains('on'),reservations:res};
+  // Pause
+  let pause=null;
+  if(el('f-pause').classList.contains('on')){
+    const start=el('f-pause-start').value, end=el('f-pause-end').value;
+    if(!start||!end){toast('⚠️ Indiquez les dates de début et de fin de pause');return;}
+    if(end<start){toast('⚠️ La date de fin doit être après le début');return;}
+    pause={start,end};
+  }
+  const data={nom,prenom:el('f-prenom').value.trim(),tel:el('f-tel').value.trim(),note:el('f-note').value.trim(),toujours:el('f-toujours').classList.contains('on'),pause,reservations:res};
   if(editingClientId){const i=clients.findIndex(c=>c.id===editingClientId);if(i>=0)clients[i]={...clients[i],...data};toast('✓ Client mis à jour');}
   else{clients.push({id:uid(),...data});toast('✓ Client ajouté');}
   saveClients();closeModal('client');renderClients();
